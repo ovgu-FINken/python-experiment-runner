@@ -1,9 +1,9 @@
 from setuptools import setup
 
 setup(
-    name='python-experiment-runner',
+    name='ExperimentRunner',
     version='0.1',
-    packages=['python-experiment-runner'],
+    packages=['ExperimentRunner'],
     url='https://github.com/ovgu-FINken/python-experiment-runner',
     license='MIT',
     author='Sebastian  Mai',
