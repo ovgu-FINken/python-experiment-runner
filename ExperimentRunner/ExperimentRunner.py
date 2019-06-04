@@ -10,28 +10,35 @@ class Parameter:
 
 
 class Experiment:
-    def __init__(self, runs=31, seed=None, function=None, parameters=[Parameter()]):
+    def __init__(self, runs=31, seed=None, function=None, parameters=[Parameter()], with_cluster=True):
         self.runs = runs
         self.seed = seed
         self.function = function
         self.reseed()
         self.tasks = []
         self.parameters = parameters
-        self.rc = ipp.Client()
+        if with_cluster:
+            self.rc = ipp.Client()
 
     @property
     def default_kwargs(self):
         return {p.name: p.default for p in self.parameters}
 
+    def queue_runs_for_kwargs(self, kwargs):
+        for _ in range(self.runs):
+            kwargs["seed"] = self.random.randint(2 ** 32)
+            self.tasks.append(kwargs.copy())
+
+
     def generate_tasks(self):
+        self.queue_runs_for_kwargs(self.default_kwargs)
         for param in self.parameters:
             kwargs = self.default_kwargs
             for v in param.space:
+                if v == param.default:
+                    continue
                 kwargs[param.name] = v
-                self.reseed()
-                for _ in range(self.runs):
-                    kwargs["seed"] = self.random.randint(2 ** 32)
-                    self.tasks.append(kwargs.copy())
+                self.queue_runs_for_kwargs(kwargs)
 
     def reseed(self):
         self.random = np.random.RandomState(seed=self.seed)
@@ -43,7 +50,7 @@ class Experiment:
         self.results = pd.concat(results, ignore_index=True)
 
     def run_map(self):
-        v = self.rc.load_balanced_view()
+        v = self.rc.direct_view()
         results = v.map_async(self.function, self.tasks)
         results.wait_interactive()
         self.results = pd.concat(results.get())
