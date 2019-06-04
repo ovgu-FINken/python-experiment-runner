@@ -50,7 +50,7 @@ class Experiment:
         self.results = pd.concat(results, ignore_index=True)
 
     def run_map(self):
-        v = self.rc.direct_view()
+        v = self.rc.load_balanced_view()
         results = v.map_async(self.function, self.tasks)
         results.wait_interactive()
         self.results = pd.concat(results.get())
