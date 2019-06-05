@@ -4,7 +4,7 @@ setup(
     name='ExperimentRunner',
     version='0.1',
     packages=['ExperimentRunner'],
-    package_dir= {'': 'ExperimentRunner'},
+    #package_dir= {'': 'ExperimentRunner'},
     url='https://github.com/ovgu-FINken/python-experiment-runner',
     license='MIT',
     author='Sebastian  Mai',
