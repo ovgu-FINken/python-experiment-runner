@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import ipyparallel as ipp
 import json
+import functools
 
 class Parameter:
     def __init__(self, name="Test", space=np.linspace(0, 5, num=10), default=0):
@@ -9,6 +10,20 @@ class Parameter:
         self.space = space
         self.default = default
 
+def run_task(function, parameters, kwargs):
+    """
+    pass parameters as (real) kwargs, not as dict
+    add parameters to resulting dataframe
+    :param kwargs: kwargs for the experiment function
+    :return: dataframe with parameter settings included
+    """
+    results = function(**kwargs)
+    # add parameter values to dataframe
+    for k, v in kwargs.items():
+        if k in [p.name for p in parameters]:
+            results[k] = v
+    results["seed"] = kwargs["seed"]
+    return results
 
 class Experiment:
     def __init__(self, runs=31, seed=None, function=None, parameters=[Parameter()], with_cluster=True):
@@ -19,6 +34,7 @@ class Experiment:
         self.tasks = []
         self.parameters = parameters
         self.results = pd.DataFrame()
+        self.parallel = with_cluster
         if with_cluster:
             self.rc = ipp.Client()
 
@@ -30,7 +46,6 @@ class Experiment:
         for _ in range(self.runs):
             kwargs["seed"] = self.random.randint(2 ** 32)
             self.tasks.append(kwargs.copy())
-
 
     def generate_tasks(self):
         self.queue_runs_for_kwargs(self.default_kwargs)
@@ -45,17 +60,17 @@ class Experiment:
     def reseed(self):
         self.random = np.random.RandomState(seed=self.seed)
 
-    def run_sequential(self):
-        results = []
-        for task in self.tasks:
-            results.append(self.function(task))
-        self.results = pd.concat(results, ignore_index=True)
-
-    def run_map(self):
-        v = self.rc.load_balanced_view()
-        results = v.map_async(self.function, self.tasks)
-        results.wait_interactive()
-        self.results = pd.concat(results.get())
+    def run_map(self, parallel: bool = None):
+        if parallel is not None:
+            self.parallel = parallel
+        if self.parallel:
+            v = self.rc.load_balanced_view()
+            results = v.map_async(functools.partial(run_task, self.function, self.parameters), self.tasks)
+            results.wait_interactive()
+            self.results = pd.concat(results.get())
+        else:
+            results = map(functools.partial(run_task, self.function, self.parameters), self.tasks)
+            self.results = pd.concat(results)
         return self.results
 
     def save_results(self, filename="test.pkl"):
