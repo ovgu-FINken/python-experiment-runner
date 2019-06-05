@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import ipyparallel as ipp
+import json
 
 class Parameter:
     def __init__(self, name="Test", space=np.linspace(0, 5, num=10), default=0):
@@ -17,6 +18,7 @@ class Experiment:
         self.reseed()
         self.tasks = []
         self.parameters = parameters
+        self.results = pd.DataFrame()
         if with_cluster:
             self.rc = ipp.Client()
 
@@ -55,6 +57,21 @@ class Experiment:
         results.wait_interactive()
         self.results = pd.concat(results.get())
         return self.results
+
+    def save_results(self, filename="test.pkl"):
+        pd.to_pickle(self.results, filename)
+
+    def load_results(self, filename="test.pkl"):
+        self.results = pd.read_pickle(filename)
+        return self.results
+
+    def save_parameters(self, filename="test.json"):
+        parameters = [param.__dict__ for param in self.parameters]
+        with open(filename, 'w') as json_file:
+            json.dump(parameters, json_file)
+
+    def load_parameters(self, filename="test.json"):
+        pass
 
 if __name__ == "__main__":
     print(f"running")
