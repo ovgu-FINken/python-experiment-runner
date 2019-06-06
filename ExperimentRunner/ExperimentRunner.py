@@ -37,6 +37,7 @@ class Experiment:
         self.parallel = with_cluster
         if with_cluster:
             self.rc = ipp.Client()
+            self.lview = self.rc.load_balanced_view()
 
     @property
     def default_kwargs(self):
@@ -60,13 +61,12 @@ class Experiment:
     def reseed(self):
         self.random = np.random.RandomState(seed=self.seed)
 
-    def run_map(self, parallel: bool = None):
+    def run_map(self, parallel: bool = None, timeout=-1):
         if parallel is not None:
             self.parallel = parallel
         if self.parallel:
-            v = self.rc.load_balanced_view()
-            results = v.map_async(functools.partial(run_task, self.function, self.parameters), self.tasks)
-            results.wait_interactive()
+            results = self.lview.map_async(functools.partial(run_task, self.function, self.parameters), self.tasks)
+            results.wait_interactive(timeout=timeout)
             self.results = pd.concat(results.get())
         else:
             results = map(functools.partial(run_task, self.function, self.parameters), self.tasks)
