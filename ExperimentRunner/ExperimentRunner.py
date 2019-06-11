@@ -41,6 +41,7 @@ def run_task(function, parameters, kwargs):
     results["seed"] = kwargs["seed"]
     t = time.time() - t
     results["task_time"] = t
+    results["task_id"] = kwargs["task_id"]
     return results
 
 class Experiment:
@@ -57,6 +58,7 @@ class Experiment:
         self.parameters = parameters
         self.results = pd.DataFrame()
         self.parallel = with_cluster
+        self._task_id = 0
         if with_cluster and Experiment.rc is None and Experiment.lview is None:
 
             Experiment.rc = ipp.Client()
@@ -69,6 +71,8 @@ class Experiment:
     def queue_runs_for_kwargs(self, kwargs):
         for _ in range(self.runs):
             kwargs["seed"] = self.random.randint(2 ** 32)
+            kwargs["task_id"] = self._task_id
+            self._task_id += 1
             self.tasks.append(kwargs.copy())
 
     def generate_tasks(self):

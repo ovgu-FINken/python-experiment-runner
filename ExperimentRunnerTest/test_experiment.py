@@ -5,8 +5,8 @@ import pandas as pd
 import numpy as np
 
 
-def testfunction(param1, param2, seed):
-    return pd.DataFrame([{"result1": param1**2, "result2": param1 + seed, "result3" :f"{param1}{param2}"}])
+def testfunction(param1=0, param2=0, seed=0, task_id=0):
+    return pd.DataFrame([{"result1": param1**2, "result2": param1 + seed, "result3" :f"{param1}{param2}", "id": task_id}])
 
 class TestExperiment(TestCase):
     def test_generate_tasks_length(self):
@@ -45,3 +45,4 @@ class TestExperiment(TestCase):
         self.assertTrue((e.results["result1"] == e.results["param1"]**2).all())
         self.assertTrue((e.results["result2"] == e.results["param1"]+e.results["seed"]).all())
         self.assertTrue(len(e.results["task_time"]) > 0, msg="task_time needs to be present in data")
+        self.assertTrue((e.results["task_id"] == e.results["id"]).all())
