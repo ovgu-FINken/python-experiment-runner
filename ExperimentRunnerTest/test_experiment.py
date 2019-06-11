@@ -44,3 +44,4 @@ class TestExperiment(TestCase):
         self.assertEqual(len(e.results), task_number, msg="result number must equal task number")
         self.assertTrue((e.results["result1"] == e.results["param1"]**2).all())
         self.assertTrue((e.results["result2"] == e.results["param1"]+e.results["seed"]).all())
+        self.assertTrue(len(e.results["task_time"]) > 0, msg="task_time needs to be present in data")

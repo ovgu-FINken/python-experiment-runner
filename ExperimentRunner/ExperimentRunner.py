@@ -3,6 +3,7 @@ import pandas as pd
 import ipyparallel as ipp
 import json
 import functools
+import time
 
 class Parameter:
     def __init__(self, name="Test", space=np.linspace(0, 5, num=10), default=0):
@@ -19,13 +20,20 @@ def run_task(function, parameters, kwargs):
     """
     results = function(**kwargs)
     # add parameter values to dataframe
+    t = time.time()
     for k, v in kwargs.items():
         if k in [p.name for p in parameters]:
             results[k] = v
     results["seed"] = kwargs["seed"]
+    t = time.time() - t
+    results["task_time"] = t
     return results
 
 class Experiment:
+
+    rc = None
+    lview = None
+
     def __init__(self, runs=31, seed=None, function=None, parameters=[Parameter()], with_cluster=True):
         self.runs = runs
         self.seed = seed
@@ -35,9 +43,10 @@ class Experiment:
         self.parameters = parameters
         self.results = pd.DataFrame()
         self.parallel = with_cluster
-        if with_cluster:
-            self.rc = ipp.Client()
-            self.lview = self.rc.load_balanced_view()
+        if with_cluster and Experiment.rc is None and Experiment.lview is None:
+
+            Experiment.rc = ipp.Client()
+            Experiment.lview = Experiment.rc.load_balanced_view()
 
     @property
     def default_kwargs(self):
@@ -65,7 +74,7 @@ class Experiment:
         if parallel is not None:
             self.parallel = parallel
         if self.parallel:
-            results = self.lview.map_async(functools.partial(run_task, self.function, self.parameters), self.tasks)
+            results = Experiment.lview.map_async(functools.partial(run_task, self.function, self.parameters), self.tasks)
             results.wait_interactive(timeout=timeout)
             self.results = pd.concat(results.get())
         else:
