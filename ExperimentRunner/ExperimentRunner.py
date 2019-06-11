@@ -4,12 +4,26 @@ import ipyparallel as ipp
 import json
 import functools
 import time
+import seaborn
 
 class Parameter:
-    def __init__(self, name="Test", space=np.linspace(0, 5, num=10), default=0):
+    def __init__(self, name="Test", space=None, default=0, values=set()):
+        """
+        generate one parameter with given defaultgs
+        :param name: name of the parameter
+        :param space: will be used to create a set of values like np.linspace(...) * default
+        :param default: default value for the parameter
+        :param values: set of values for the parameter
+        """
         self.name = name
         self.space = space
         self.default = default
+        self.values = {default} # set of values for this param
+        if space is not None:
+            for x in self.space:
+                self.values.add(x * default)
+        self.values = self.values.union(values)
+
 
 def run_task(function, parameters, kwargs):
     """
@@ -61,7 +75,7 @@ class Experiment:
         self.queue_runs_for_kwargs(self.default_kwargs)
         for param in self.parameters:
             kwargs = self.default_kwargs
-            for v in param.space:
+            for v in param.values:
                 if v == param.default:
                     continue
                 kwargs[param.name] = v
@@ -96,6 +110,25 @@ class Experiment:
 
     def load_parameters(self, filename="test.json"):
         pass
+
+    def explore_parameter(self, data=None, parameters=None, name="Name"):
+        """return a dataframe with the variations of one paramafer and all other paramaters at their default value"""
+        df = data
+        if df is None:
+            df = self.results
+        if parameters is None:
+            parameters = self.parameters
+
+        for parameter in parameters:
+            if parameter.name != name and parameter.name in df.keys():
+                df = df.loc[df[parameter.name] == parameter.default]
+        return df
+
+    def plot_parameter(self, data=None, parameters=None, name="Name", y="collisions", **kwargs):
+        """plot a parameter with all other paramaters set to their default value"""
+        df_eps_f = self.explore_parameter(data=data, parameters=parameters, name=name)
+        return seaborn.catplot(data=df_eps_f, x="step_count", y=y, col=name, sharex=True, sharey=True, **kwargs)  # , kind="box")
+
 
 if __name__ == "__main__":
     print(f"running")

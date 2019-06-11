@@ -10,17 +10,17 @@ def testfunction(param1, param2, seed):
 
 class TestExperiment(TestCase):
     def test_generate_tasks_length(self):
-        self.parameterFoo = Parameter(name="foo", space=["A", "B"], default="C")
-        self.parameterBar = Parameter(name="bar", space=range(10), default=0)
+        self.parameterFoo = Parameter(name="foo", space=[1, 2], default=3)
+        self.parameterBar = Parameter(name="bar", space=range(10), default=1.0)
         self.runs = 3
 
         e = Experiment(runs=self.runs, seed=42, parameters=[self.parameterFoo], with_cluster=False)
         e.generate_tasks()
-        self.assertEqual(len(e.tasks), self.runs * (len(self.parameterFoo.space) + 1))
+        self.assertEqual(len(e.tasks), self.runs * (len(self.parameterFoo.space)))
         e.tasks = []
         e.parameters = [self.parameterFoo, self.parameterBar]
         e.generate_tasks()
-        self.assertEqual(len(e.tasks), self.runs * (len(self.parameterFoo.space) + len(self.parameterBar.space)))
+        self.assertEqual(len(e.tasks), self.runs * (len(self.parameterFoo.space) + len(self.parameterBar.space) - 1))
 
     def test_save_results(self):
         e1 = Experiment(with_cluster=False)
@@ -33,7 +33,7 @@ class TestExperiment(TestCase):
     def test_run_map(self):
         parameters = [
             Parameter(name="param1", space=[0,1,2]),
-            Parameter(name="param2", default="a", space=["b", "c", "d"])
+            Parameter(name="param2", default="a", values=["b", "c", "d"])
         ]
         e = Experiment(runs=3, parameters=parameters, with_cluster=False, seed=0, function=testfunction)
         e.generate_tasks()
