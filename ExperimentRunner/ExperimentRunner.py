@@ -24,6 +24,14 @@ class Parameter:
                 self.values.add(x * default)
         self.values = self.values.union(values)
 
+    def get_data(self):
+        return {"name" : self.name, "default":self.default, "values": list(self.values)}
+
+    def set_data(self, data):
+        self.name = data["name"]
+        self.default = data["default"]
+        self.values = set(data["values"])
+
 
 def run_task(function, parameters, kwargs):
     """
@@ -108,12 +116,19 @@ class Experiment:
         return self.results
 
     def save_parameters(self, filename="test.json"):
-        parameters = [param.__dict__ for param in self.parameters]
+        parameters = [param.get_data() for param in self.parameters]
         with open(filename, 'w') as json_file:
             json.dump(parameters, json_file)
 
     def load_parameters(self, filename="test.json"):
-        pass
+        with open(filename, 'r') as json_file:
+            p = []
+            l = json.load(json_file)
+            for data in l:
+                x = Parameter()
+                x.set_data(data)
+                p.append(x)
+            self.parameters = p
 
     def explore_parameter(self, data=None, parameters=None, name="Name"):
         """return a dataframe with the variations of one paramafer and all other paramaters at their default value"""
