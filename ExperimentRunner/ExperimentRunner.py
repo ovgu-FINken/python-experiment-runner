@@ -96,12 +96,15 @@ class Experiment:
     def reseed(self):
         self.random = np.random.RandomState(seed=self.seed)
 
-    def run_map(self, parallel: bool = None, timeout=-1):
+    def run_map(self, parallel: bool = None, timeout=-1, interactive=True):
         if parallel is not None:
             self.parallel = parallel
         if self.parallel:
             results = Experiment.lview.map_async(functools.partial(run_task, self.function, self.parameters), self.tasks)
-            results.wait_interactive(timeout=timeout)
+            if interactive:
+                results.wait_interactive(timeout=timeout)
+            else:
+                results.wait(timeout=timeout)
             self.results = pd.concat(results.get())
         else:
             results = map(functools.partial(run_task, self.function, self.parameters), self.tasks)
