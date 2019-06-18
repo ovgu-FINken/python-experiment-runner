@@ -24,14 +24,8 @@ class Parameter:
                 self.values.add(x * default)
         self.values = self.values.union(values)
         self.optimize = optimize
-        if min is None:
-            self.min = np.min(list(self.values))
-        else:
-            self.min = min
-        if max is None:
-            self.max = np.max(list(self.values))
-        else:
-            self.max = max
+        self.min = min
+        self.max = max
 
     def get_data(self):
         return {"name" : self.name, "default":self.default, "values": list(self.values)}
@@ -41,6 +35,8 @@ class Parameter:
         self.default = data["default"]
         self.values = set(data["values"])
 
+    def __str__(self):
+        return str(self.__dict__)
 
 def run_task(function, parameters, kwargs):
     """
@@ -223,6 +219,8 @@ class Optimizer(Experiment):
                 if fitness <= self.global_best_fitness:
                     self.global_best_fitness = fitness
                     self.global_best = self.population[i]
+                    for i, v in enumerate(self.population[i]):
+                        self.mapping[i].best = v
             self.fitness[i] = fitness
         # PSO update
         for i in range(self.population_size):
@@ -255,10 +253,10 @@ if __name__ == "__main__":
     print(f"running")
     parameters = [
         Parameter(name="Foo", values=range(3), min=-10, max=128, optimize=True),
-        Parameter(name="Bar", values=np.linspace(-3, 3), optimize=True)
+        Parameter(name="Bar", values=np.linspace(-3, 3))
     ]
-    optimizer = Optimizer(parameters=parameters, with_cluster=False, function=dummy_run, evaluation_function=dummy_fitness)
-    for _ in range(20):
+    optimizer = Optimizer(parameters=parameters, with_cluster=False, function=dummy_run, evaluation_function=dummy_fitness, runs=2)
+    for _ in range(5):
         optimizer.run_generation()
         print(f"fitness values: {optimizer.fitness} \n {optimizer.global_best_fitness}: {optimizer.global_best}\n{optimizer.population}\n\n")
-
+    print([str(p) for p in optimizer.parameters])
