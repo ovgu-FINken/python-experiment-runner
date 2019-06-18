@@ -223,6 +223,7 @@ class Optimizer(Experiment):
 
     def run_generation(self):
         self.generation += 1
+        self.tasks = []
         self.queue_tasks_for_generation()
         self.run_map()
         for i in range(self.population_size):
@@ -235,8 +236,8 @@ class Optimizer(Experiment):
                 if fitness <= self.global_best_fitness:
                     self.global_best_fitness = fitness
                     self.global_best = self.population[i]
-                    for i, v in enumerate(self.population[i]):
-                        self.mapping[i].best = v
+                    for j, v in enumerate(self.population[i]):
+                        self.mapping[j].best = v
             self.fitness[i] = fitness
         # PSO update
         for i in range(self.population_size):
@@ -269,7 +270,7 @@ if __name__ == "__main__":
     print(f"running")
     parameters = [
         Parameter(name="Foo", values=range(3), low=-10, high=128, optimize=True),
-        Parameter(name="Bar", values=np.linspace(-3, 3))
+        Parameter(name="Bar", values=np.linspace(-3, 3), low=0, high=5, optimize=True)
     ]
     optimizer = Optimizer(parameters=parameters, with_cluster=False, function=dummy_run, evaluation_function=dummy_fitness, runs=2)
     for _ in range(5):
