@@ -50,6 +50,8 @@ class Parameter:
             self.high = data["high"]
         if "best" in data.keys():
             self.best = data["best"]
+        if "optimize" in data.keys():
+            self.optimize = True
 
     def __str__(self):
         return str(self.__dict__)

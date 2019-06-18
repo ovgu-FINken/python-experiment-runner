@@ -51,7 +51,7 @@ class TestExperiment(TestCase):
 
 
     def test_load_parameters(self):
-        self.parameterFoo = Parameter(name="foo", space=[1, 2], default=3, low=0, high=10)
+        self.parameterFoo = Parameter(name="foo", space=[1, 2], default=3, low=0, high=10, optimize=True)
         self.parameterFoo.best = 3.1
         self.parameterBar = Parameter(name="bar", space=range(10), default=1.0)
         self.params = [self.parameterBar, self.parameterFoo]
@@ -65,5 +65,6 @@ class TestExperiment(TestCase):
         self.assertEqual(len(e.parameters), len(self.params))
         self.assertEqual(foo.low, 0)
         self.assertEqual(foo.best, 3.1)
+        self.assertTrue(foo.optimize)
 
 
