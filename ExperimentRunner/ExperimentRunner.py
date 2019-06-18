@@ -81,13 +81,16 @@ class Experiment:
     rc = None
     lview = None
 
-    def __init__(self, runs=31, seed=None, function=None, parameters=[Parameter()], with_cluster=True):
+    def __init__(self, runs=31, seed=None, function=None, parameters=None, param_file=None, with_cluster=True):
         self.runs = runs
         self.seed = seed
         self.function = function
         self.reseed()
         self.tasks = []
         self.parameters = parameters
+        if param_file is not None:
+            self.load_parameters(param_file)
+        assert self.parameters is not None
         self.results = pd.DataFrame()
         self.parallel = with_cluster
         self._task_id = 0
@@ -253,10 +256,6 @@ class Optimizer(Experiment):
             for j, v in enumerate(values):
                 kwargs[self.mapping[j].name] = v
             self.queue_runs_for_kwargs(kwargs)
-
-
-
-
 
 
 if __name__ == "__main__":
