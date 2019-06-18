@@ -56,6 +56,11 @@ class Parameter:
     def __str__(self):
         return str(self.__dict__)
 
+    def set_values_from_default(self, space):
+        self.values = {self.default}
+        self.values.union(space * self.default)
+
+
 def run_task(function, parameters, kwargs):
     """
     pass parameters as (real) kwargs, not as dict
@@ -173,13 +178,15 @@ class Experiment:
         with open(filename, 'w') as json_file:
             json.dump(parameters, json_file)
 
-    def load_parameters(self, filename="test.json"):
+    def load_parameters(self, filename="test.json", use_best_as_default=False):
         with open(filename, 'r') as json_file:
             p = []
             l = json.load(json_file)
             for data in l:
                 x = Parameter()
                 x.set_data(data)
+                if x.best is not None and use_best_as_default:
+                    x.default = x.best
                 p.append(x)
             self.parameters = p
 
