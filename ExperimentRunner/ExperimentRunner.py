@@ -7,9 +7,9 @@ import time
 import seaborn
 
 class Parameter:
-    def __init__(self, name="Test", space=None, default=0, values=set()):
+    def __init__(self, name="Test", space=None, default=0, values=set(), optimize=False, min=None, max=None):
         """
-        generate one parameter with given defaultgs
+        generate one parameter with given defaults
         :param name: name of the parameter
         :param space: will be used to create a set of values like np.linspace(...) * default
         :param default: default value for the parameter
@@ -23,6 +23,15 @@ class Parameter:
             for x in self.space:
                 self.values.add(x * default)
         self.values = self.values.union(values)
+        self.optimize = optimize
+        if min is None:
+            self.min = np.min(list(self.values))
+        else:
+            self.min = min
+        if max is None:
+            self.max = np.max(list(self.values))
+        else:
+            self.max = max
 
     def get_data(self):
         return {"name" : self.name, "default":self.default, "values": list(self.values)}
@@ -46,6 +55,9 @@ def run_task(function, parameters, kwargs):
     for k, v in kwargs.items():
         if k in [p.name for p in parameters]:
             results[k] = v
+    if "log" in kwargs.keys():
+        for v in kwargs["log"]:
+            results[v] = kwargs[v]
     results["seed"] = kwargs["seed"]
     t = time.time() - t
     results["task_time"] = t
@@ -92,6 +104,27 @@ class Experiment:
                     continue
                 kwargs[param.name] = v
                 self.queue_runs_for_kwargs(kwargs)
+
+
+    def queue_cross_product(self):
+        for kwargs in self.cross_product_kwargs():
+            self.queue_runs_for_kwargs(kwargs)
+
+    def cross_product_kwargs(self):
+        """generate tasks for the cross-product of the configuration space"""
+        tasks = [self.default_kwargs]
+        for param in self.parameters:
+            print(f"\n\nbefore\n{tasks}\nparameter: {param.name}\nvalues:{param.values}")
+            new = tasks.copy()
+            tasks = []
+            for v in param.values:
+                for i, kwargs in enumerate(new):
+                    kw = kwargs.copy()
+                    kw[param.name] = v
+                    new[i] = kw
+                tasks = tasks + new
+            print(f"after: {tasks}")
+        return tasks
 
     def reseed(self):
         self.random = np.random.RandomState(seed=self.seed)
@@ -151,6 +184,81 @@ class Experiment:
         df_eps_f = self.explore_parameter(data=data, parameters=parameters, name=name)
         return seaborn.catplot(data=df_eps_f, x="step_count", y=y, col=name, sharex=True, sharey=True, **kwargs)  # , kind="box")
 
+class Optimizer(Experiment):
+    def __init__(self, evaluation_function=None, population_size=10, pso_c1=1.4, pso_c2=1.4, **kwargs):
+        Experiment.__init__(self, **kwargs)
+        self.evaluation_function = evaluation_function
+        self.population = []
+        self.population_size = population_size
+        self.mapping = [param for param in self.parameters if param.optimize]
+        self.init_population(population_size)
+        self.fitness = [np.inf for _ in range(population_size)]
+        self.global_best = self.population[0]
+        self.previous_best = self.population
+        self.global_best_fitness = np.inf
+        self.previous_best_fitness = [np.inf for _ in range(population_size)]
+        self.generation = 0
+        self.pso_c1 = pso_c1
+        self.pso_c2 = pso_c2
+
+    def init_population(self, population_size):
+        self.population = np.zeros((population_size, len(self.mapping)))
+        # initialize each column of the population matrix with values randomly drawn from [param.min, param.max)
+        for j, param in enumerate(self.mapping):
+            self.population[:,j] = np.random.uniform(low=param.min, high=param.max, size=population_size)
+
+
+
+    def run_generation(self):
+        self.generation += 1
+        self.queue_tasks_for_generation()
+        self.run_map()
+        for i in range(self.population_size):
+            df = self.results.loc[self.results["generation"] == self.generation]
+            df = df.loc[df.individual == i]
+            fitness = self.evaluation_function(df)
+            if fitness <= self.previous_best_fitness[i]:
+                self.previous_best_fitness[i] = fitness
+                self.previous_best[i] = self.population[i]
+                if fitness <= self.global_best_fitness:
+                    self.global_best_fitness = fitness
+                    self.global_best = self.population[i]
+            self.fitness[i] = fitness
+        # PSO update
+        for i in range(self.population_size):
+            self.population[i] += self.pso_c1 * np.multiply(np.random.rand(len(self.mapping)), (self.global_best - self.population[i])) +\
+                                  self.pso_c2 * np.multiply(np.random.rand(len(self.mapping)), (self.previous_best[i] - self.population[i]))
+
+    def queue_tasks_for_generation(self):
+        for i, values in enumerate(self.population):
+            kwargs = self.default_kwargs
+            kwargs["individual"] = i
+            kwargs["generation"] = self.generation
+            kwargs["log"] = ["individual", "generation"]
+            for j, v in enumerate(values):
+                kwargs[self.mapping[j].name] = v
+            self.queue_runs_for_kwargs(kwargs)
+
+
+
+
+
 
 if __name__ == "__main__":
+    def dummy_run(Foo=0, Bar=0, **_):
+        return pd.DataFrame([{"Foobar": np.abs(Foo) + np.abs(Bar)}])
+
+    def dummy_fitness(df):
+        return np.abs(df["Foobar"].mean())
+
+
     print(f"running")
+    parameters = [
+        Parameter(name="Foo", values=range(3), min=-10, max=128, optimize=True),
+        Parameter(name="Bar", values=np.linspace(-3, 3), optimize=True)
+    ]
+    optimizer = Optimizer(parameters=parameters, with_cluster=False, function=dummy_run, evaluation_function=dummy_fitness)
+    for _ in range(20):
+        optimizer.run_generation()
+        print(f"fitness values: {optimizer.fitness} \n {optimizer.global_best_fitness}: {optimizer.global_best}\n{optimizer.population}\n\n")
+
