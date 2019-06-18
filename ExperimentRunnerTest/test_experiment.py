@@ -51,7 +51,8 @@ class TestExperiment(TestCase):
 
 
     def test_load_parameters(self):
-        self.parameterFoo = Parameter(name="foo", space=[1, 2], default=3)
+        self.parameterFoo = Parameter(name="foo", space=[1, 2], default=3, low=0, high=10)
+        self.parameterFoo.best = 3.1
         self.parameterBar = Parameter(name="bar", space=range(10), default=1.0)
         self.params = [self.parameterBar, self.parameterFoo]
         e = Experiment(parameters=self.params, with_cluster=False)
@@ -62,5 +63,7 @@ class TestExperiment(TestCase):
         foo = e.parameters[0] if e.parameters[0].name == "foo" else e.parameters[1]
         self.assertSetEqual(foo.values, self.parameterFoo.values)
         self.assertEqual(len(e.parameters), len(self.params))
+        self.assertEqual(foo.low, 0)
+        self.assertEqual(foo.best, 3.1)
 
 

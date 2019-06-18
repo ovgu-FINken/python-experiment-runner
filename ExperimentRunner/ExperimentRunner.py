@@ -7,7 +7,7 @@ import time
 import seaborn
 
 class Parameter:
-    def __init__(self, name="Test", space=None, default=0, values=set(), optimize=False, min=None, max=None):
+    def __init__(self, name="Test", space=None, default=0, values=set(), optimize=False, low=None, high=None):
         """
         generate one parameter with given defaults
         :param name: name of the parameter
@@ -24,16 +24,32 @@ class Parameter:
                 self.values.add(x * default)
         self.values = self.values.union(values)
         self.optimize = optimize
-        self.min = min
-        self.max = max
+        self.low = low
+        self.high = high
+        self.best = None
 
     def get_data(self):
-        return {"name" : self.name, "default":self.default, "values": list(self.values)}
+        data = {"name" : self.name, "default":self.default, "values": list(self.values)}
+        if self.low is not None:
+            data["low"] = self.low
+        if self.high is not None:
+            data["high"] = self.high
+        if self.optimize:
+            data["optimize"] = True
+        if self.best is not None:
+            data["best"] = self.best
+        return data
 
     def set_data(self, data):
         self.name = data["name"]
         self.default = data["default"]
         self.values = set(data["values"])
+        if "low" in data.keys():
+            self.low = data["low"]
+        if "high" in data.keys():
+            self.high = data["high"]
+        if "best" in data.keys():
+            self.best = data["best"]
 
     def __str__(self):
         return str(self.__dict__)
@@ -201,7 +217,7 @@ class Optimizer(Experiment):
         self.population = np.zeros((population_size, len(self.mapping)))
         # initialize each column of the population matrix with values randomly drawn from [param.min, param.max)
         for j, param in enumerate(self.mapping):
-            self.population[:,j] = np.random.uniform(low=param.min, high=param.max, size=population_size)
+            self.population[:,j] = np.random.uniform(low=param.low, high=param.high, size=population_size)
 
 
 
@@ -252,7 +268,7 @@ if __name__ == "__main__":
 
     print(f"running")
     parameters = [
-        Parameter(name="Foo", values=range(3), min=-10, max=128, optimize=True),
+        Parameter(name="Foo", values=range(3), low=-10, high=128, optimize=True),
         Parameter(name="Bar", values=np.linspace(-3, 3))
     ]
     optimizer = Optimizer(parameters=parameters, with_cluster=False, function=dummy_run, evaluation_function=dummy_fitness, runs=2)
