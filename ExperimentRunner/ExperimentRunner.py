@@ -209,10 +209,11 @@ class Experiment:
         return seaborn.catplot(data=df_eps_f, x="step_count", y=y, col=name, sharex=True, sharey=True, **kwargs)  # , kind="box")
 
 class Optimizer(Experiment):
-    def __init__(self, evaluation_function=None, population_size=10, pso_c1=1.4, pso_c2=1.4, **kwargs):
+    def __init__(self, evaluation_function=None, population_size=10, pso_c1=1.4, pso_c2=1.4, pso_w = 0.5, **kwargs):
         Experiment.__init__(self, **kwargs)
         self.evaluation_function = evaluation_function
         self.population = []
+        self.velocity = []
         self.population_size = population_size
         self.mapping = [param for param in self.parameters if param.optimize]
         self.init_population(population_size)
@@ -224,12 +225,14 @@ class Optimizer(Experiment):
         self.generation = 0
         self.pso_c1 = pso_c1
         self.pso_c2 = pso_c2
+        self.pso_w = pso_w
 
     def init_population(self, population_size):
         self.population = np.zeros((population_size, len(self.mapping)))
         # initialize each column of the population matrix with values randomly drawn from [param.min, param.max)
         for j, param in enumerate(self.mapping):
             self.population[:,j] = np.random.uniform(low=param.low, high=param.high, size=population_size)
+        self.velocity = np.zeros_like(self.population)
 
 
 
@@ -251,13 +254,21 @@ class Optimizer(Experiment):
                     for j, v in enumerate(self.population[i]):
                         self.mapping[j].best = v
             self.fitness[i] = fitness
-        # PSO update
+        # PSO update -- velocity
         for i in range(self.population_size):
-            self.population[i] += self.pso_c1 * np.multiply(np.random.rand(len(self.mapping)), (self.global_best - self.population[i])) +\
-                                  self.pso_c2 * np.multiply(np.random.rand(len(self.mapping)), (self.previous_best[i] - self.population[i]))
+            self.velocity[i] += self.pso_c1 * np.multiply(np.random.rand(len(self.mapping)), (self.global_best - self.population[i])) +\
+                                self.pso_c2 * np.multiply(np.random.rand(len(self.mapping)), (self.previous_best[i] - self.population[i]))+\
+                                self.pso_w  * self.velocity[i]
 
+        # PSO update -- position
+        self.old = self.population.copy()
+        self.population = self.population + self.velocity
+
+        # clamp values
         for j, param in enumerate(self.mapping):
             self.population[:,j] = np.clip(self.population[:,j], a_min=param.low, a_max=param.max)
+        # calc last velocity
+        self.velocity = self.population - self.old
 
     def queue_tasks_for_generation(self):
         for i, values in enumerate(self.population):
