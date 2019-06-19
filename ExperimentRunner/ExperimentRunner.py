@@ -256,7 +256,7 @@ class Optimizer(Experiment):
             self.fitness[i] = fitness
         # PSO update -- velocity
         for i in range(self.population_size):
-            self.velocity[i] += self.pso_c1 * np.multiply(np.random.rand(len(self.mapping)), (self.global_best - self.population[i])) +\
+            self.velocity[i] = self.pso_c1 * np.multiply(np.random.rand(len(self.mapping)), (self.global_best - self.population[i])) +\
                                 self.pso_c2 * np.multiply(np.random.rand(len(self.mapping)), (self.previous_best[i] - self.population[i]))+\
                                 self.pso_w  * self.velocity[i]
 
@@ -295,7 +295,7 @@ if __name__ == "__main__":
         Parameter(name="Bar", values=np.linspace(-3, 3), low=0, high=5, optimize=True)
     ]
     optimizer = Optimizer(parameters=parameters, with_cluster=False, function=dummy_run, evaluation_function=dummy_fitness, runs=2)
-    for _ in range(5):
+    for _ in range(50):
         optimizer.run_generation()
         print(f"fitness values: {optimizer.fitness} \n {optimizer.global_best_fitness}: {optimizer.global_best}\n{optimizer.population}\n\n")
     print([str(p) for p in optimizer.parameters])
