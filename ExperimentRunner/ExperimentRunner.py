@@ -266,7 +266,7 @@ class Optimizer(Experiment):
 
         # clamp values
         for j, param in enumerate(self.mapping):
-            self.population[:,j] = np.clip(self.population[:,j], a_min=param.low, a_max=param.max)
+            self.population[:,j] = np.clip(self.population[:,j], a_min=param.low, a_max=param.high)
         # calc last velocity
         self.velocity = self.population - self.old
 
