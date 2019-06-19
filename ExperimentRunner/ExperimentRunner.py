@@ -256,6 +256,9 @@ class Optimizer(Experiment):
             self.population[i] += self.pso_c1 * np.multiply(np.random.rand(len(self.mapping)), (self.global_best - self.population[i])) +\
                                   self.pso_c2 * np.multiply(np.random.rand(len(self.mapping)), (self.previous_best[i] - self.population[i]))
 
+        for j, param in enumerate(self.mapping):
+            self.population[:,j] = np.clip(self.population[:,j], a_min=param.low, a_max=param.max)
+
     def queue_tasks_for_generation(self):
         for i, values in enumerate(self.population):
             kwargs = self.default_kwargs
