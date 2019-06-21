@@ -5,9 +5,10 @@ import json
 import functools
 import time
 import seaborn
+import copy
 
 class Parameter:
-    def __init__(self, name="Test", space=None, default=0, values=set(), optimize=False, low=None, high=None):
+    def __init__(self, name="Test", space=None, default=0, values=set(), optimize=False, low=None, high=None, traverese_in_optimization=False):
         """
         generate one parameter with given defaults
         :param name: name of the parameter
@@ -27,6 +28,7 @@ class Parameter:
         self.low = low
         self.high = high
         self.best = None
+        self.traverse_in_optimization = traverese_in_optimization
 
     def get_data(self):
         data = {"name" : self.name, "default":self.default, "values": list(self.values)}
@@ -38,20 +40,24 @@ class Parameter:
             data["optimize"] = True
         if self.best is not None:
             data["best"] = self.best
+        if self.traverse_in_optimization:
+            data["traverse_in_optimization"] = True
         return data
 
     def set_data(self, data):
         self.name = data["name"]
         self.default = data["default"]
         self.values = set(data["values"])
-        if "low" in data.keys():
+        if "low" in data:
             self.low = data["low"]
-        if "high" in data.keys():
+        if "high" in data:
             self.high = data["high"]
-        if "best" in data.keys():
+        if "best" in data:
             self.best = data["best"]
-        if "optimize" in data.keys():
+        if "optimize" in data:
             self.optimize = True
+        if "traverse_in_optimization" in data:
+            self.traverse_in_optimization = data["traverse_in_optimization"]
 
     def __str__(self):
         return str(self.__dict__)
@@ -87,6 +93,7 @@ class Experiment:
 
     rc = None
     lview = None
+    parameters: Parameter
 
     def __init__(self, runs=31, seed=None, function=None, parameters=None, param_file=None, with_cluster=True):
         self.runs = runs
@@ -102,7 +109,6 @@ class Experiment:
         self.parallel = with_cluster
         self._task_id = 0
         if with_cluster and Experiment.rc is None and Experiment.lview is None:
-
             Experiment.rc = ipp.Client()
             Experiment.lview = Experiment.rc.load_balanced_view()
 
@@ -221,6 +227,7 @@ class Optimizer(Experiment):
         self.global_best = self.population[0]
         self.previous_best = self.population
         self.global_best_fitness = np.inf
+        self.global_best_identifier = {}
         self.previous_best_fitness = [np.inf for _ in range(population_size)]
         self.generation = 0
         self.pso_c1 = pso_c1
@@ -251,6 +258,7 @@ class Optimizer(Experiment):
                 if fitness <= self.global_best_fitness:
                     self.global_best_fitness = fitness
                     self.global_best = self.population[i]
+                    self.global_best_identifier = {"individual": i, "generation": self.generation}
                     for j, v in enumerate(self.population[i]):
                         self.mapping[j].best = v
             self.fitness[i] = fitness
@@ -271,14 +279,28 @@ class Optimizer(Experiment):
         self.velocity = self.population - self.old
 
     def queue_tasks_for_generation(self):
-        for i, values in enumerate(self.population):
-            kwargs = self.default_kwargs
-            kwargs["individual"] = i
-            kwargs["generation"] = self.generation
-            kwargs["log"] = ["individual", "generation"]
-            for j, v in enumerate(values):
-                kwargs[self.mapping[j].name] = v
-            self.queue_runs_for_kwargs(kwargs)
+        #create the cross product of all variable parameters to find all possible scenarios
+        variations = [{}]
+        traverse_params = [param for param in self.parameters if param.traverse_in_optimization]
+        for p in traverse_params:
+            new = variations
+            variations = []
+            for v in p.values:
+                for i in range(len(new)):
+                    new[i][p.name] = v
+                variations = variations + copy.deepcopy(new)
+
+        #print(variations)
+        for variation in variations:
+            for i, values in enumerate(self.population):
+                kwargs = self.default_kwargs
+                kwargs.update(variation)
+                kwargs["individual"] = i
+                kwargs["generation"] = self.generation
+                kwargs["log"] = ["individual", "generation"]
+                for j, v in enumerate(values):
+                    kwargs[self.mapping[j].name] = v
+                self.queue_runs_for_kwargs(kwargs)
 
 
 if __name__ == "__main__":
@@ -288,14 +310,16 @@ if __name__ == "__main__":
     def dummy_fitness(df):
         return np.abs(df["Foobar"].mean())
 
-
-    print(f"running")
     parameters = [
         Parameter(name="Foo", values=range(3), low=-10, high=128, optimize=True),
-        Parameter(name="Bar", values=np.linspace(-3, 3), low=0, high=5, optimize=True)
+        Parameter(name="Bar", values=np.linspace(-3, 3), low=0, high=5, optimize=True),
+        Parameter(name="Baz", default="a", values=["a", "b", "c"], traverese_in_optimization=True),
+        Parameter(name="Pling", values=range(2), traverese_in_optimization=True)
     ]
     optimizer = Optimizer(parameters=parameters, with_cluster=False, function=dummy_run, evaluation_function=dummy_fitness, runs=2)
+    optimizer.queue_tasks_for_generation()
     for _ in range(50):
         optimizer.run_generation()
         print(f"fitness values: {optimizer.fitness} \n {optimizer.global_best_fitness}: {optimizer.global_best}\n{optimizer.population}\n\n")
     print([str(p) for p in optimizer.parameters])
+    print(optimizer.global_best_identifier)

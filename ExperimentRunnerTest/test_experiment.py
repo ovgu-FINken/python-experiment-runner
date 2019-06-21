@@ -25,10 +25,10 @@ class TestExperiment(TestCase):
         self.assertEqual(len(e.tasks), self.runs * (len(self.parameterFoo.space) + len(self.parameterBar.space) - 1))
 
     def test_save_results(self):
-        e1 = Experiment(with_cluster=False)
+        e1 = Experiment(with_cluster=False, parameters=[])
         e1.results = pd.DataFrame([{i: i ** 2 for i in range(10)}])
         e1.save_results(filename="test.pkl")
-        e2 = Experiment(with_cluster=False)
+        e2 = Experiment(with_cluster=False, parameters=[])
         e2.load_results(filename="test.pkl")
         self.assertTrue(e1.results.equals(e2.results), msg="Data should be the same after reload")
 
@@ -53,7 +53,7 @@ class TestExperiment(TestCase):
     def test_load_parameters(self):
         self.parameterFoo = Parameter(name="foo", space=[1, 2], default=3, low=0, high=10, optimize=True)
         self.parameterFoo.best = 3.1
-        self.parameterBar = Parameter(name="bar", space=range(10), default=1.0)
+        self.parameterBar = Parameter(name="bar", space=range(10), default=1.0, traverese_in_optimization=True)
         self.params = [self.parameterBar, self.parameterFoo]
         e = Experiment(parameters=self.params, with_cluster=False)
         e.save_parameters(filename="test.json")
@@ -61,10 +61,13 @@ class TestExperiment(TestCase):
         names = sorted([p.name for p in e.parameters])
         self.assertListEqual(["bar", "foo"], names)
         foo = e.parameters[0] if e.parameters[0].name == "foo" else e.parameters[1]
+        bar = e.parameters[0] if e.parameters[0].name == "bar" else e.parameters[1]
         self.assertSetEqual(foo.values, self.parameterFoo.values)
         self.assertEqual(len(e.parameters), len(self.params))
         self.assertEqual(foo.low, 0)
         self.assertEqual(foo.best, 3.1)
         self.assertTrue(foo.optimize)
+        self.assertTrue(bar.traverse_in_optimization)
+        self.assertFalse(foo.traverse_in_optimization)
 
 
