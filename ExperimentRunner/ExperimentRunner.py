@@ -95,13 +95,14 @@ class Experiment:
     lview = None
     parameters: Parameter
 
-    def __init__(self, runs=31, seed=None, function=None, parameters=None, param_file=None, with_cluster=True):
+    def __init__(self, runs=31, seed=None, function=None, parameters=None, param_file=None, timeout=600, with_cluster=True):
         self.runs = runs
         self.seed = seed
         self.function = function
         self.reseed()
         self.tasks = []
         self.parameters = parameters
+        self.timeout = timeout
         if param_file is not None:
             self.load_parameters(param_file)
         assert self.parameters is not None
@@ -157,15 +158,18 @@ class Experiment:
     def reseed(self):
         self.random = np.random.RandomState(seed=self.seed)
 
-    def run_map(self, parallel: bool = None, timeout=-1, interactive=True):
+    def run_map(self, parallel: bool = None, interactive=True):
         if parallel is not None:
             self.parallel = parallel
         if self.parallel:
             results = Experiment.lview.map_async(functools.partial(run_task, self.function, self.parameters), self.tasks)
             if interactive:
-                results.wait_interactive(timeout=timeout)
+                results.wait_interactive(timeout=self.timeout)
             else:
-                results.wait(timeout=timeout)
+                results.wait(timeout=self.timeout)
+            for result in results:
+                if not result.ready():
+                    print("result not ready %s" %result)
             self.results = pd.concat(results.get())
         else:
             results = map(functools.partial(run_task, self.function, self.parameters), self.tasks)
