@@ -168,8 +168,9 @@ class Experiment:
             else:
                 results.wait(timeout=self.timeout)
             for result in results:
-                if not result.ready():
-                    print("result not ready %s" %result)
+                if not type(result) == pd.DataFrame:
+                    if not result.ready():
+                        print("result not ready %s" %result)
             self.results = pd.concat(results.get())
         else:
             results = map(functools.partial(run_task, self.function, self.parameters), self.tasks)
