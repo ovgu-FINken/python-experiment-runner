@@ -266,6 +266,7 @@ class Optimizer(Experiment):
                     self.global_best_identifier = {"individual": i, "generation": self.generation}
                     for j, v in enumerate(self.population[i]):
                         self.mapping[j].best = v
+                    print(f"found new best: individual {i} @ gen {self.generation} with fitness {fitness}")
             self.fitness[i] = fitness
         # PSO update -- velocity
         for i in range(self.population_size):
