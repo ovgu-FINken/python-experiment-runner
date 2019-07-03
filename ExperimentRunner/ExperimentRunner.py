@@ -176,7 +176,7 @@ class Experiment:
         else:
             results = map(functools.partial(run_task, self.function, self.parameters), self.tasks)
             data = pd.concat(results)
-        self.results = pd.concat(self.results, data)
+        self.results = pd.concat([self.results, data])
         return self.results
 
     def save_results(self, filename="test.pkl"):
