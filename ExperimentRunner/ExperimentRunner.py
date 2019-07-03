@@ -161,6 +161,7 @@ class Experiment:
     def run_map(self, parallel: bool = None, interactive=True):
         if parallel is not None:
             self.parallel = parallel
+        data = None
         if self.parallel:
             results = Experiment.lview.map_async(functools.partial(run_task, self.function, self.parameters), self.tasks)
             if interactive:
@@ -171,10 +172,11 @@ class Experiment:
                 if not type(result) == pd.DataFrame:
                     if not result.ready():
                         print("result not ready %s" %result)
-            self.results = pd.concat(results.get())
+            data = pd.concat(results.get())
         else:
             results = map(functools.partial(run_task, self.function, self.parameters), self.tasks)
-            self.results = pd.concat(results)
+            data = pd.concat(results)
+        self.results = pd.concat(self.results, data)
         return self.results
 
     def save_results(self, filename="test.pkl"):
